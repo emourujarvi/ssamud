@@ -1,5 +1,7 @@
 from miniboa import TelnetServer
 from mudserver import MudServer
+from roomloader import RoomLoader
+from world import World
 
 #------------------------------------------------------------------------------
 #       Main
@@ -7,7 +9,11 @@ from mudserver import MudServer
 
 if __name__ == '__main__':
 
-	server = MudServer();
+	roomloader = RoomLoader("rooms.txt")
+	world = World(roomloader.rooms)
+
+	server = MudServer(world);
+	
 	telnet_server = TelnetServer(port=7777, address='', on_connect=server.on_connect, on_disconnect=server.on_disconnect, timeout = .05)
 	server.link_telnet(telnet_server)
 

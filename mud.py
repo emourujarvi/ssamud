@@ -9,8 +9,8 @@ from world import World
 
 if __name__ == '__main__':
 
-	roomloader = RoomLoader("rooms.txt")
-	world = World(roomloader.rooms)
+	world = World()
+	roomloader = RoomLoader(world, "rooms.txt")
 
 	server = MudServer(world);
 	

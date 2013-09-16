@@ -71,12 +71,6 @@ class MudServer():
 
 #------------------------------------------------------------------------------------------------#
 
-	def say(self, player, msg):
-		others = self.WORLD.room_get_other_players(player)
-		if others:
-			for o in others:
-				o.client.send(msg)
-
 	def broadcast(self, msg):
 		"""
 		Send msg to every client.
@@ -85,36 +79,8 @@ class MudServer():
 			if client.login:
 				client.send(msg)
 
-	def send_room_description(self, player):
-		r = self.WORLD.room_get(player.location)
-		player.client.send_cc("\n^B" + r.name + "^~\n" + "-"*70 + "\n")
-		player.client.send_wrapped(r.description + "\n")
-		if r.exits:
-			m = "Exits: ["
-			for key in r.exits.keys():
-				m += " " + key
-			m += " ]\n"
-			player.client.send_cc(m)
-		if r.players:
-			m = ""
-			for p in r.players:
-				if p != player.name:
-					m += "^W" + p + "^~ is here.\n"
-			player.client.send_cc(m)
-
-	def attempt_room_change(self, player, direction):
-		old_room = self.WORLD.room_get(player.location)
-		new_room = self.WORLD.player_change_room(player, direction)
-
-		if old_room != new_room:
-			for p in old_room.players:
-				self.WORLD.player_get(p).client.send(player.name + " left the room.\n")
-			for p in new_room.players:
-				self.WORLD.player_get(p).client.send(player.name + " arrived to the room.\n")
-			self.send_room_description(player)			
-
 	def send_prompt(self, player):
-		player.client.send("> ");
+		player.client.send("\n> ");
 
 #------------------------------------------------------------------------------------------------#
 
@@ -135,6 +101,9 @@ class MudServer():
 		"""
 		msg = client.get_command()
 
+		if len(msg) < 1:
+			return
+
 		if client.login:
 
 			player = self.WORLD.player_get(client.login)
@@ -145,7 +114,7 @@ class MudServer():
 				else:
 					msg = msg[4:]
 				print('%s says, "%s"' % (player.name, msg))
-				self.say(player, '%s says, %s\n' % (player.name, msg))
+				player.on_say('%s says, %s\n' % (player.name, msg))
 
 			elif msg[0] == "-" or msg[0:4] == "com ":
 				if msg[0] == "'":
@@ -158,13 +127,17 @@ class MudServer():
 			else:
 				c = msg.lower()
 
-				if c == 'exit':
+				if c == 'quit':
 					player.client.deactivate()
 				elif c == 'n' or c == 'north' or c == 's' or c == 'south' or c == 'e' or c == 'east' or c == 'w' or c == 'west':
 					c = c[0]
-					self.attempt_room_change(player, c)
+					player.on_move(c)
 				elif c == 'l' or c == 'look':
-					self.send_room_description(player)
+					player.room.on_look(player)
+				elif c == 'exits':
+					player.room.on_look_exits(player)
+				elif c == 'where':
+					player.client.send("You are now in (Roomid " + str(player.room.roomid) + ") " + player.room.name)
 
 			self.send_prompt(player)
 
@@ -174,7 +147,7 @@ class MudServer():
 				print("-- %s is now known as %s" % (client.addrport(), client.login))
 				# TODO Search if user exists already. Prohibit same names.
 				player = self.WORLD.player_login(client, client.login)
-				self.send_room_description(player)
+				# self.send_room_description(player)
 				self.broadcast('\n%s joined the server.\n> ' % client.login )
 				# self.send_prompt(client)
 			else:
